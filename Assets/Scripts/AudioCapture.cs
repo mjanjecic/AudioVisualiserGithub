@@ -32,8 +32,9 @@ public class AudioCapture : MonoBehaviour
 
     //Values that can be changed by user
     #region Public properties
-
-    FftSize fftSize;
+    
+    [HideInInspector]
+    public FftSize fftSize;
     int minFreq;
     int maxFreq;
     // float value for spectrum key 
@@ -45,7 +46,7 @@ public class AudioCapture : MonoBehaviour
     #endregion
     //-----------------------------------------------
 
-    int resolutionSize;
+    public int resolutionSize;
     [HideInInspector]
     public float[] fftBuffer;
 
@@ -58,11 +59,12 @@ public class AudioCapture : MonoBehaviour
         this.resolutionSize = resolutionSize;
         this.scalingStrategy = scalingStrategy;
         this.useAverage = useAverage;
+        StartCapture();
     }
 
     private void Start()
     {
-        StartCapture();
+        
     }
 
     public void StartCapture()

@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.PostProcessing;
 
 public class ParticleEffects : MonoBehaviour
 {
@@ -9,19 +11,32 @@ public class ParticleEffects : MonoBehaviour
     public GameObject linearPrefab;
     public GameObject circlePrefab;
 
-    public int lineNum = 16;
+    //Parents all instantiated bars to 1 parent
+    GameObject parentObject;
+
+    public PostProcessProfile postProcessObj;
+
+    [HideInInspector]
+    public int lineNum;
     public float lineDist = 0.1f;
 
     //Circle parameters
     public float maxScale = 1;
     public float circleSize = 5;
-    public float scale = 1;
+    public float scale = 10;
+
+    public float yPosition = -10;
 
     float screenWidth;
 
     float[] lastValues;
 
     List<GameObject> tracks;
+
+    public bool instantiateInMiddle;
+
+    Color dominantColor;
+    public bool randomColorBool = false; 
 
     public enum VisualisationShape
     {
@@ -33,6 +48,12 @@ public class ParticleEffects : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+
+    }
+
+    public void InstantiateVisualisation()
+    {
+        DestroyChildren();
         tracks = new List<GameObject>();
         if (visualisationType == VisualisationShape.Linear)
             InstantiateLines();
@@ -45,9 +66,10 @@ public class ParticleEffects : MonoBehaviour
     void DestroyChildren()
     {
         tracks = new List<GameObject>();
-        foreach(Transform child in transform)
+        if(transform.Find("ParticleObjectParent") != null)
         {
-            Destroy(child.gameObject);
+
+        Destroy(transform.Find("ParticleObjectParent").gameObject);
         }
     }
 
@@ -60,38 +82,65 @@ public class ParticleEffects : MonoBehaviour
         float screenDivided = screenSize.x / lineNum;
         float ratio = screenSize.x * 100 / screenWidth;
 
+        Vector3 objPos = Vector3.zero;
+
+        parentObject = new GameObject();
+        parentObject.name = "ParticleObjectParent";
+        parentObject.transform.parent = this.transform;
+
         for (int i = 0; i < lineNum; i++)
         {
-            Vector3 objPos = new Vector3(-screenSize.x + i * screenDivided * 2, this.transform.localPosition.y-1, 0);
-            /*int predznak = 1;
-            if(i %2==0)
+            if (instantiateInMiddle)
             {
-                predznak = -1;
+
+                int numberSign = 1;
+                if (i % 2 == 0)
+                {
+                    numberSign = -1;
+                }
+                objPos = new Vector3((screenDivided * i * numberSign), this.transform.localPosition.y - 1, 0);
             }
-            Vector3 objPos = new Vector3((screenSize.x/2 + i * predznak * screenDivided * 2)/2, this.transform.localPosition.y-1, 0);
-            */
+            else
+            {
+                objPos = new Vector3(-screenSize.x + 0.2f + i * screenDivided * 2, this.transform.localPosition.y - 1, 0);
+            }
+            
             var newObj = Instantiate(linearPrefab, objPos, Quaternion.Euler(-90,0,0));
             newObj.name = "Particle" + i;
-            newObj.transform.parent = this.transform;
-            newObj.transform.localPosition = new Vector3(newObj.transform.localPosition.x, -10, newObj.transform.localPosition.z);
+            newObj.transform.parent = parentObject.transform;
+            newObj.transform.localPosition = new Vector3(newObj.transform.localPosition.x, yPosition, newObj.transform.localPosition.z);
             newObj.transform.localScale = new Vector3(1, 1, 1);
+            Debug.Log(dominantColor);
+            if (dominantColor != Color.clear)
+            {
+                var particleSys = newObj.GetComponent<ParticleSystem>().main;
+                particleSys.startColor = dominantColor;
+            }
             tracks.Add(newObj);
         }
     }
 
     public void InstantiateCircle()
     {
-        Debug.Log("Hello!");
-        float rotationOffest = 360 / lineNum;
+        float rotationOffest = 360.0f / lineNum;
+        parentObject = new GameObject();
+        parentObject.name = "ParticleObjectParent";
+        parentObject.transform.parent = this.transform;
+
         for (int i = 0; i < lineNum; i++)
         {
-            GameObject instanceCube = (GameObject)Instantiate(circlePrefab);
-            instanceCube.transform.position = this.transform.position;
-            instanceCube.transform.parent = this.transform;
-            instanceCube.name = "SpectrumCube" + i;
-            this.transform.eulerAngles = new Vector3(0, 0, rotationOffest * 2 * i);
-            instanceCube.transform.position = Vector3.up * circleSize;
-            tracks.Add(instanceCube);
+            parentObject.transform.eulerAngles = new Vector3(0, 0, rotationOffest * i);
+            GameObject instanceParticleEffect = (GameObject)Instantiate(circlePrefab);
+            instanceParticleEffect.transform.position = this.transform.position;
+            instanceParticleEffect.transform.parent = parentObject.transform;
+            instanceParticleEffect.name = "SpectrumCube" + i;
+            instanceParticleEffect.transform.position = Vector3.up * circleSize;
+            if (dominantColor != Color.clear)
+            {
+                var particleSys = instanceParticleEffect.GetComponent<ParticleSystem>().main;
+                particleSys.startColor = dominantColor;
+            }
+            tracks.Add(instanceParticleEffect);
         }
         
     }
@@ -107,47 +156,81 @@ public class ParticleEffects : MonoBehaviour
             else if (resData[i] > 6)
                 resData[i] = 6;
 
-            ParticleSystem systemParticles = tracks[i].GetComponent<ParticleSystem>();
-            float scale = Mathf.Pow(resData[i] * i + 1 , 2);
-            //float scale = resData[i];
+            ParticleSystem particleSystem = parentObject.transform.GetChild(i).GetComponent<ParticleSystem>();
+            //float scale = Mathf.Pow(resData[i] * i + 1 , 2);
+            float scale = resData[i] * 100;
             float size = resData[i] / 10;
             if (size > 0.5f)
                 size = 0.5f;
-            systemParticles.startSize = size;
-            float emissionRate = scale / 10;
-            if (emissionRate / 10 > 250)
+            //particleSystem.playbackSpeed = 100;
+
+            //Particle size
+            var particleMainProperties = particleSystem.main;
+            particleMainProperties.startSize = size;
+
+            //Emission rate
+            float emissionRate = scale * 100;
+            if (emissionRate > 250)
                 emissionRate = 250;
-            systemParticles.emissionRate = emissionRate;
-            scale /= 10000;
-            //scale += averageValues;
+            var emission = particleSystem.emission;
+            emission.rateOverTime = emissionRate;
+
+            scale += averageValues;
+            scale /= 2500;
             if (scale < 0.01f )
                 scale = 0.01f ;
 
             //Smooth speeding
             scale = (scale + lastValues[i]) / 1.2f;
-            
-            systemParticles.playbackSpeed = scale;
-            //systemParticles.startColor = new Color(Random.Range(0.1f, 1), 1, Random.Range(0.1f, 1));
+
+            if (i == 3)
+            {
+
+                postProcessObj.TryGetSettings<Bloom>(out var bloom);
+                bloom.intensity.overrideState = true;
+                float bloomScale = Mathf.Pow(scale+1, 4);
+                bloom.intensity.value =  bloomScale;
+            }
+
+
+            particleSystem.playbackSpeed = scale;
+
+            //Randomize colors
+            if (randomColorBool)
+            {
+                particleSystem.startColor = new Color(dominantColor.r + Random.Range(0.1f, 1), dominantColor.g + Random.Range(0.1f, 1), dominantColor.b + Random.Range(0.1f, 1));
+            }
             //var noise = systemParticles.noise;
 
             lastValues[i] = scale;
             
               //  noise.strengthMultiplier = resData[i];
         }
+
+        if (visualisationType == VisualisationShape.Circular)
+        {
+            parentObject.transform.Rotate(Vector3.forward * averageValues / 5f, Space.Self);
+        }
+
+
+
     }
 
-    public void ChangeColor(string hexColor)
+    public void ChangeColor(string hexColor, bool randomCol)
     {
         Color newCol;
 
         if (ColorUtility.TryParseHtmlString(hexColor, out newCol))
         {
 
-        for (int i = 0; i < lineNum; i++)
-        {
-            tracks[i].GetComponent<ParticleSystem>().startColor = newCol;
+            for (int i = 0; i < lineNum; i++)
+            {
+                tracks[i].GetComponent<ParticleSystem>().startColor = newCol;
+            }
         }
-        }
+
+        dominantColor = newCol;
+        randomColorBool = randomCol;
     }
 
     public void ChangeVisualisationMode(string visualisationTypeString)
@@ -158,5 +241,15 @@ public class ParticleEffects : MonoBehaviour
             InstantiateLines();
         else
             InstantiateCircle();
+    }
+
+    public void ChangeOrientation()
+    {
+        yPosition *= -1;
+        for (int i = 0; i < lineNum; i++)
+        {
+            tracks[i].transform.localPosition = new Vector3(tracks[i].transform.localPosition.x, yPosition, tracks[i].transform.localPosition.z);
+            tracks[i].transform.rotation = Quaternion.Euler(-tracks[i].transform.rotation.eulerAngles.x , tracks[i].transform.rotation.y, tracks[i].transform.rotation.z);
+        }
     }
 }
