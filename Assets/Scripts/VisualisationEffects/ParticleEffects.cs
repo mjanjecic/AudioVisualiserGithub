@@ -54,13 +54,14 @@ public class ParticleEffects : MonoBehaviour
     public void InstantiateVisualisation()
     {
         DestroyChildren();
+        lastValues = new float[lineNum];
+        Debug.Log("This should work...");
         tracks = new List<GameObject>();
         if (visualisationType == VisualisationShape.Linear)
             InstantiateLines();
         else
             InstantiateCircle();
         screenWidth = Screen.width;
-        lastValues = new float[128];
     }
 
     void DestroyChildren()
@@ -110,7 +111,6 @@ public class ParticleEffects : MonoBehaviour
             newObj.transform.parent = parentObject.transform;
             newObj.transform.localPosition = new Vector3(newObj.transform.localPosition.x, yPosition, newObj.transform.localPosition.z);
             newObj.transform.localScale = new Vector3(1, 1, 1);
-            Debug.Log(dominantColor);
             if (dominantColor != Color.clear)
             {
                 var particleSys = newObj.GetComponent<ParticleSystem>().main;
@@ -142,7 +142,6 @@ public class ParticleEffects : MonoBehaviour
             }
             tracks.Add(instanceParticleEffect);
         }
-        
     }
 
     public void MapFrequencies(float[] resData)
@@ -150,19 +149,16 @@ public class ParticleEffects : MonoBehaviour
         float averageValues = resData.Sum() / resData.Length;
         for (int i = 0; i < lineNum; i++)
         {
-            //resData[i] = resData[i] + 2 * Mathf.Sqrt(i / (lineNum + 0.0f)) * resData[i];
             if (resData[i] < 0.01f)
                 resData[i] = 0.01f;
             else if (resData[i] > 6)
                 resData[i] = 6;
 
             ParticleSystem particleSystem = parentObject.transform.GetChild(i).GetComponent<ParticleSystem>();
-            //float scale = Mathf.Pow(resData[i] * i + 1 , 2);
             float scale = resData[i] * 100;
             float size = resData[i] / 10;
             if (size > 0.5f)
                 size = 0.5f;
-            //particleSystem.playbackSpeed = 100;
 
             //Particle size
             var particleMainProperties = particleSystem.main;
@@ -177,43 +173,33 @@ public class ParticleEffects : MonoBehaviour
 
             scale += averageValues;
             scale /= 2500;
-            if (scale < 0.01f )
-                scale = 0.01f ;
-
-            //Smooth speeding
-            scale = (scale + lastValues[i]) / 1.2f;
+            if (scale < 0.01f)
+                scale = 0.01f;
 
             if (i == 3)
             {
-
                 postProcessObj.TryGetSettings<Bloom>(out var bloom);
                 bloom.intensity.overrideState = true;
-                float bloomScale = Mathf.Pow(scale+1, 4);
-                bloom.intensity.value =  bloomScale;
+                float bloomScale = Mathf.Pow(scale + 1, 4);
+                bloom.intensity.value = bloomScale;
             }
 
-
-            particleSystem.playbackSpeed = scale;
+            particleMainProperties.simulationSpeed = scale;
 
             //Randomize colors
             if (randomColorBool)
             {
-                particleSystem.startColor = new Color(dominantColor.r + Random.Range(0.1f, 1), dominantColor.g + Random.Range(0.1f, 1), dominantColor.b + Random.Range(0.1f, 1));
+                particleMainProperties.startColor = new Color(dominantColor.r + Random.Range(0.1f, 1), dominantColor.g + Random.Range(0.1f, 1), dominantColor.b + Random.Range(0.1f, 1));
             }
-            //var noise = systemParticles.noise;
-
-            lastValues[i] = scale;
-            
-              //  noise.strengthMultiplier = resData[i];
+            var noise = particleSystem.noise;
+            //lastValues[i] = scale;
+            noise.strengthMultiplier = resData[i];
         }
 
         if (visualisationType == VisualisationShape.Circular)
         {
             parentObject.transform.Rotate(Vector3.forward * averageValues / 5f, Space.Self);
         }
-
-
-
     }
 
     public void ChangeColor(string hexColor, bool randomCol)
@@ -225,7 +211,8 @@ public class ParticleEffects : MonoBehaviour
 
             for (int i = 0; i < lineNum; i++)
             {
-                tracks[i].GetComponent<ParticleSystem>().startColor = newCol;
+                var particleSys = tracks[i].GetComponent<ParticleSystem>().main;
+                particleSys.startColor = newCol;
             }
         }
 

@@ -22,6 +22,8 @@ public class VisualisationMain : MonoBehaviour
     public float[] resData;
     public ScalingStrategy scalingStrategy;
 
+    public float maxHeight;
+
     //Smooths the line values
     public bool useAverage;
 
@@ -44,7 +46,7 @@ public class VisualisationMain : MonoBehaviour
             lineInstator.InstantiateVisualisation();
         }
         
-        audioCapture.Construct(fftSize, minFreq, maxFreq, resData, scalingStrategy, useAverage, barNumber);
+        audioCapture.Initialize(fftSize, minFreq, maxFreq, scalingStrategy, useAverage, barNumber);
     }
 
     // Update is called once per frame
@@ -56,12 +58,18 @@ public class VisualisationMain : MonoBehaviour
             
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
-        float[] res = audioCapture.GetFFtData();
-        if(lineInstator.isActiveAndEnabled)
-            lineInstator.MapFrequencies(res);
-        if (particleEffects.isActiveAndEnabled)
-            particleEffects.MapFrequencies(res);
-            //if(particleEffects.transform.childCount == particleEffects.lineNum)
+        float[] res = audioCapture.GetFFtData(maxHeight);
+        if (res.Length == barNumber)
+        {
+            if (lineInstator.isActiveAndEnabled && lineInstator.lineNum == barNumber)
+            {
+                lineInstator.MapFrequencies(res);
+            }
+            if (particleEffects.isActiveAndEnabled)
+            {
+                particleEffects.MapFrequencies(res);
+            }
+        }
     }
 
 
@@ -71,12 +79,18 @@ public class VisualisationMain : MonoBehaviour
         audioCapture.FreeData();
     }
 
-    public void UpdateValues(ScalingStrategy scaling, bool useAverage, string fftSize)
+    public void UpdateValues(string scaling, bool useAverage, string fftSize, bool isInverted)
     {
+        //Debug.Log("Update " + useAverage + ' ' + scaling + ' ' + fftSize + " " + isInverted);
+        audioCapture.resolutionSize = barNumber;
+        this.fftSize = (FftSize)System.Enum.Parse(typeof(FftSize), fftSize);
+        this.scalingStrategy = (ScalingStrategy)System.Enum.Parse(typeof(ScalingStrategy), scaling);
+        audioCapture.Initialize(this.fftSize, minFreq, maxFreq, this.scalingStrategy, useAverage, barNumber);
         if (lineInstator.isActiveAndEnabled)
         {
-
+            Debug.Log("This is wrong!");
             lineInstator.lineNum = barNumber;
+            lineInstator.isInverted = isInverted;
             lineInstator.InstantiateVisualisation();
         }
         if (particleEffects.isActiveAndEnabled)
@@ -84,10 +98,5 @@ public class VisualisationMain : MonoBehaviour
             particleEffects.lineNum = barNumber;
             particleEffects.InstantiateVisualisation();
         }
-        audioCapture.resolutionSize = barNumber;
-        audioCapture.StartCapture();
-        this.fftSize = (FftSize)System.Enum.Parse(typeof(FftSize), fftSize);
-        audioCapture.Construct(this.fftSize, minFreq, maxFreq, resData, scaling, useAverage, barNumber);
-        audioCapture.spectrumBase.UpdateValues(scaling, useAverage);
     }
 }

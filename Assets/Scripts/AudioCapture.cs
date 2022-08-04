@@ -38,7 +38,6 @@ public class AudioCapture : MonoBehaviour
     int minFreq;
     int maxFreq;
     // float value for spectrum key 
-    public float[] resData;
     ScalingStrategy scalingStrategy;
 
     public bool useAverage = true;
@@ -50,21 +49,15 @@ public class AudioCapture : MonoBehaviour
     [HideInInspector]
     public float[] fftBuffer;
 
-    public void Construct(FftSize fftSize, int minFreq, int maxFreq, float[] resData, ScalingStrategy scalingStrategy, bool useAverage, int resolutionSize)
+    public void Initialize(FftSize fftSize, int minFreq, int maxFreq, ScalingStrategy scalingStrategy, bool useAverage, int resolutionSize)
     {
         this.fftSize = fftSize;
         this.minFreq = minFreq;
         this.maxFreq = maxFreq;
-        this.resData = resData;
         this.resolutionSize = resolutionSize;
         this.scalingStrategy = scalingStrategy;
         this.useAverage = useAverage;
         StartCapture();
-    }
-
-    private void Start()
-    {
-        
     }
 
     public void StartCapture()
@@ -109,10 +102,10 @@ public class AudioCapture : MonoBehaviour
         capture.Dispose();
     }
 
-    public float[] GetFFtData()
+    public float[] GetFFtData(float maxHeight)
     {
         spectrumBase.GetFftData(fftBuffer, this);
-        return spectrumBase.GetSpectrumPoints(50, fftBuffer);
+        return spectrumBase.GetSpectrumPoints(maxHeight, fftBuffer);
     }
 
     private void singleBlockNotificationStream_SingleBlockRead(object sender, SingleBlockReadEventArgs e)

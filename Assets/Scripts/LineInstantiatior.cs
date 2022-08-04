@@ -9,6 +9,8 @@ public class LineInstantiatior : MonoBehaviour
     public List<GameObject> circlePrefabs;
     GameObject parentObject;
 
+    public bool isInverted = false;
+
     [HideInInspector]
     public int lineNum = 16;
     //public float lineDist = 0.1f;
@@ -53,30 +55,44 @@ public class LineInstantiatior : MonoBehaviour
 
     public void MapFrequencies(float[] resData)
     {
-        if(lineNum == resData.Length)
+        //Avoid NullPointer error
+        if (lineNum == resData.Length)
         {
-        for (int i = 0; i < lineNum; i++)
-        {
-            if (resData[i] < 0.01f)
+            for (int i = 0; i < lineNum; i++)
+            {
+                if (resData[i] < 0.01f)
+                {
+                    resData[i] = 0.01f;
+                }
+                else if (resData[i] > 6)
+                {
+                    resData[i] = 6;
+                }
 
-                resData[i] = 0.01f;
-            else if (resData[i] > 6)
-                resData[i] = 6;
-            // Scale the data because for some reason bass is always loud and treble is soft
-            //tracks[i] = resData[i] + 2 * Mathf.Sqrt(i / (lineNum + 0.0f)) * resData[i];
-            //tracks[i].transform.localScale = new Vector2(tracks[i].transform.localScale.x, resData[i] + 2 * Mathf.Sqrt(i / (lineNum + 0.0f)) * resData[i]);
-            if (visType == VisualisationType.Linear)
-                parentObject.transform.GetChild(i).transform.localScale = new Vector2(tracks[i].transform.localScale.x, resData[i]);
-            else
-                parentObject.transform.GetChild(i).transform.Rotate(new Vector3(0,0,resData[i]));
+                if (visType == VisualisationType.Linear)
+                {
+                    parentObject.transform.GetChild(i).transform.localScale = new Vector2(tracks[i].transform.localScale.x, resData[i]);
+                }
+                else
+                {
+                    parentObject.transform.GetChild(i).transform.Rotate(new Vector3(0, 0, resData[i]));
+                }
+            }
+        }
+    }
 
-        }
-        }
+    public void ChangeVisualisationMode(string visualisationTypeString)
+    {
+        DestroyChildren();
+        visType = (VisualisationType)System.Enum.Parse(typeof(VisualisationType), visualisationTypeString);
+        if (visType == VisualisationType.Linear)
+            InstantiateLines();
+        else
+            InstantiateCircles();
     }
 
     public void InstantiateLines()
     {
-
         Vector2 screenSize = Camera.main.ViewportToWorldPoint(new Vector2(1, 1));
 
         float objRenderWidth = prefabLine.GetComponent<Renderer>().bounds.size.x;
@@ -120,17 +136,17 @@ public class LineInstantiatior : MonoBehaviour
         float ThetaScale = 0.01f;
         float radius = 3f;
         int Size;
-        LineRenderer LineDrawer = gameObject.AddComponent<LineRenderer>(); 
+        LineRenderer lineDrawer = gameObject.AddComponent<LineRenderer>(); 
         float Theta = 0f;
         Theta = 0f;
         Size = (int)((1f / ThetaScale) + 1f);
-        LineDrawer.SetVertexCount(Size);
+        lineDrawer.positionCount = Size;
         for (int i = 0; i < Size; i++)
         {
             Theta += (2.0f * Mathf.PI * ThetaScale);
             float x = radius * Mathf.Cos(Theta);
             float y = radius * Mathf.Sin(Theta);
-            LineDrawer.SetPosition(i, new Vector3(x, y, 0));
+            lineDrawer.SetPosition(i, new Vector3(x, y, 0));
         }
     }
 
@@ -140,7 +156,6 @@ public class LineInstantiatior : MonoBehaviour
 
         if (ColorUtility.TryParseHtmlString(hexColor, out newCol))
         {
-
             for (int i = 0; i < lineNum; i++)
             {
                 tracks[i].GetComponent<SpriteRenderer>().color = newCol;

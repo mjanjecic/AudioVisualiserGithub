@@ -12,8 +12,8 @@ public class SpectrumBase : FftProvider
     private readonly List<object> _contexts = new List<object>();
 
     //FrequencyMapping
-    private const int ScaleFactorLinear = 90;
-    protected const int ScaleFactorSqr = 2;
+    private const int ScaleFactorLinear = 9;
+    protected const int ScaleFactorSqr = 5;
     protected const double MinDbValue = -90;
     protected const double MaxDbValue = 0;
     protected const double DbScale = (MaxDbValue - MinDbValue);
@@ -25,6 +25,10 @@ public class SpectrumBase : FftProvider
     private int _minimumFrequencyIndex;
     private int[] _spectrumIndexMax;
     private int[] _spectrumLogScaleIndexMax;
+
+    //SmoothingBuffer
+    double[] smoothBuffer;
+    double[] bufferDecrease;
 
     ScalingStrategy scalingStrategy;
     bool useAverage;
@@ -45,6 +49,8 @@ public class SpectrumBase : FftProvider
         this.scalingStrategy = scalingStrategy;
         this.useAverage = useAverage;
         this.spectrumSize = spectrumSize;
+        smoothBuffer = new double[(int)fftSize];
+        bufferDecrease = new double[(int)fftSize];
         _maxFftIndex = (int)fftSize/2-1;
     }
 
@@ -58,10 +64,9 @@ public class SpectrumBase : FftProvider
     public int GetFftBandIndex(float frequency)
     {
         int fftSize = (int)FftSize;
-        
-        double f = sampleRate / 2.0;
+        double f = sampleRate;
         // ReSharper disable once PossibleLossOfFraction
-        return (int)((frequency / f) * (fftSize / 2));
+        return (int)((frequency / f) * (fftSize)) ;
     }
 
     public void UpdateValues(ScalingStrategy scaling, bool useAverage)
@@ -74,9 +79,15 @@ public class SpectrumBase : FftProvider
     public void UpdateFrequencyMapping()
     {
         _maximumFrequencyIndex = Math.Min(GetFftBandIndex(_maximumFrequency) + 1, _maxFftIndex);
-        _minimumFrequencyIndex = Math.Min(GetFftBandIndex(_minimumFrequency), _maxFftIndex);
-        
+        //_minimumFrequencyIndex = Math.Min(GetFftBandIndex(MinFreq), _maxFftIndex);
+        _minimumFrequencyIndex = MinFreq;
+        //_maximumFrequencyIndex = Math.Min(GetFftBandIndex(_maximumFrequency) + 1, _maxFftIndex);
 
+        //_maximumFrequencyIndex = (int)FftSize / 2 - 1 - _minimumFrequencyIndex;
+        Debug.Log("FFTSIZE " + (int)FftSize);
+        Debug.Log("MaxFreq " + _maximumFrequencyIndex);
+        Debug.Log("MaxFreq Set " + _maximumFrequency);
+        Debug.Log("MinFreq " + _minimumFrequencyIndex);
         int actualResolution = spectrumSize;
         int indexCount = _maximumFrequencyIndex - _minimumFrequencyIndex;
         double linearIndexBucketSize = Math.Round(indexCount / (double)actualResolution, 3);
@@ -84,35 +95,34 @@ public class SpectrumBase : FftProvider
         _spectrumIndexMax = _spectrumIndexMax.CheckBuffer(actualResolution, true);
         _spectrumLogScaleIndexMax = _spectrumLogScaleIndexMax.CheckBuffer(actualResolution, true);
 
-        double maxLog = Math.Log(actualResolution, actualResolution);
+        //double maxLog = Math.Log(actualResolution, actualResolution);
 
         //MyTest
         double multiplier = Math.Log(indexCount, actualResolution);
-
+        Debug.Log(multiplier);
         for (int i = 1; i < actualResolution; i++)
         {
-            int freqRangeMax = (int)Math.Ceiling(Math.Pow((i + 1), multiplier)) + _minimumFrequencyIndex - 1;
-            Debug.Log(freqRangeMax);
-            int logIndex =
-                (int)((maxLog - Math.Log((actualResolution + 1) - i, (actualResolution + 1))) * indexCount) +
-                _minimumFrequencyIndex;
+            //int logIndex = (int)((multiplier - Math.Log((actualResolution + 1) - i, (actualResolution + 1))) * indexCount) + _minimumFrequencyIndex;
+            //My
+            int logIndex = (int)Math.Ceiling(_minimumFrequencyIndex + Math.Pow(i, multiplier));
+            //Debug.Log("Log index" + logIndex);
 
-
-            //_spectrumIndexMax[i - 1] = _minimumFrequencyIndex + (int)(i * linearIndexBucketSize);
             _spectrumIndexMax[i - 1] = _minimumFrequencyIndex + (int)(i * linearIndexBucketSize);
-            //_spectrumLogScaleIndexMax[i - 1] = logIndex;
             _spectrumLogScaleIndexMax[i - 1] = logIndex;
         }
 
         if (actualResolution > 0)
         {
+            Debug.Log(_maximumFrequencyIndex);
             _spectrumIndexMax[_spectrumIndexMax.Length - 1] = _spectrumLogScaleIndexMax[_spectrumLogScaleIndexMax.Length - 1] = _maximumFrequencyIndex;
         }
-        for (int i = 1; i < actualResolution; i++)
+        for (int i = 0; i < actualResolution; i++)
         {
 
-        //Debug.Log(_spectrumIndexMax[i-1]);
+        Debug.Log(i + ": " + _spectrumLogScaleIndexMax[i]);
         }
+
+        //Debug.Log(_spectrumLogScaleIndexMax.Length);
 
     }
 
@@ -139,10 +149,9 @@ public class SpectrumBase : FftProvider
 
         double average = 0.0;
         int averageNumber = 0;
-
+        //Debug.Log("////////////////////////////////////////");
         for (int i = _minimumFrequencyIndex; i <= _maximumFrequencyIndex; i++)
         {
-            //value0 = FastFourierTransformation.HammingWindow(i, (int)FftSize);
             switch (scalingStrategy)
             {
                 case ScalingStrategy.Decibel:
@@ -154,54 +163,57 @@ public class SpectrumBase : FftProvider
                 case ScalingStrategy.Sqrt:
                     value0 = ((Math.Sqrt(fftBuffer[i]))) * actualMaxValue;
                     break;
-
-
             }
 
             //Use hamming window function
-            //value0 *= FastFourierTransformation.HammingWindow(i, (int)FftSize-1);
-            value0 *= FastFourierTransformation.HammingWindow(i, _maximumFrequencyIndex);
-
+            value0 *= FastFourierTransformation.HammingWindow(i, (int)FftSize);
 
             //lastValue = value0;
             average += value0;
             averageNumber++;
 
-
-
-            bool recalc = true;
-            //value = Math.Max(0, Math.Max(value0, value));
             average += value0;
             averageNumber++;
             value = Math.Max(value0, value);
-
-            if (spectrumPointIndex < _spectrumIndexMax.Length &&
-                   i == _spectrumLogScaleIndexMax[spectrumPointIndex])
+            if (spectrumPointIndex < _spectrumIndexMax.Length && i == _spectrumLogScaleIndexMax[spectrumPointIndex])
             {
-                //if (!recalc)
-                //    value = lastValue;
-
-                
-                //if (useAverage && spectrumPointIndex > 0)
-                //    value = (lastValue + value) / 2;
                 if (value > maxValue)
                     value = maxValue;
-                if (useAverage)
+                if (useAverage && spectrumPointIndex > 0)
                 {
-                    value0 = (average + 0.0) / averageNumber;
+                    value0 = (value0 + lastValue + 0.0) / 2;
                 }
+
+                //Smoothing curves
+                if (value0 > smoothBuffer[i])
+                {
+                    smoothBuffer[i] = value0;
+                    bufferDecrease[i] = 0.01;
+                }
+                if (value0 < smoothBuffer[i])
+                {
+                    smoothBuffer[i] -= bufferDecrease[i];
+                    bufferDecrease[i] *= 1.5;
+                }
+                value0 = smoothBuffer[i];
+
                 dataPoints.Add(new SpectrumPointData { SpectrumPointIndex = spectrumPointIndex, Value = value0 });
                 averageNumber = 0;
                 average = 0;
-                //lastValue = value;
+                lastValue = value;
                 value = 0.0;
                 spectrumPointIndex++;
-                recalc = false;
+                //Debug.Log(spectrumPointIndex);
             }
             //value = 0;
         }
 
         return dataPoints.ToArray();
+    }
+
+    void BufferScaling()
+    {
+
     }
 
     public struct SpectrumPointData

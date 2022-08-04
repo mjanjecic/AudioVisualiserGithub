@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using UnityEngine.Events;
 using TMPro;
 
-public class GUIProperties : MonoBehaviour
+public class GUIProperties : GUIPropertiesBase
 {
     //Main panel and animation for activation/deactivation
     
@@ -17,37 +17,16 @@ public class GUIProperties : MonoBehaviour
     Animator panelAnimation;
     bool isGUIActive = true;
 
-
-
-    #region Reference scripts
-
-    //Controller scripts
-    public ParticleEffects particleScript;
-    public LineInstantiatior lineScript;
-
-    //Main visualisation script
-    VisualisationMain visualisationScript;
-    #endregion
-
     #region UI Property objects
-    //Use average for smoothing values
-    Toggle useAverageObj;
     bool useAverage;
-
-    //Rising or falling particles
-    Toggle risingObj;
     bool isRising;
+    bool isInverted;
 
     TextMeshProUGUI lineNumText;
     Slider lineNumSlider;
-    //TODO probably not needed
-    DropDownToEnum dropDownSpectrumScaling;
 
-    TMP_Dropdown visualisationTypeDropdown;
-    TMP_Dropdown fftSizeDropdown;
 
     public InputField hexColor;
-    Toggle randomizeColors;
     bool randomColorBool;
     #endregion
 
@@ -61,54 +40,56 @@ public class GUIProperties : MonoBehaviour
     void Start()
     {
         panelAnimation = panelMain.GetComponent<Animator>();
-        lineScript = GameObject.Find("MainVisualisation").GetComponent<LineInstantiatior>();
-        visualisationScript = GameObject.Find("MainVisualisation").GetComponent<VisualisationMain>();
-        
-        //Is rising or falling
-        risingObj = GameObject.Find("Orientation").GetComponent<Toggle>();
+
+
+        //Instantiate up or down 
         isRising = risingObj.isOn;
         risingObj.onValueChanged.AddListener(delegate { UpdateOrientation(); });
 
         //Randomize particle colors
-        randomizeColors = GameObject.Find("ToggleRandomizeDominantColor").GetComponent<Toggle>();
         randomColorBool = randomizeColors.isOn;
         randomizeColors.onValueChanged.AddListener(delegate { ColorChange(hexColor, randomColorBool); });
 
-
         //Use average
-        useAverageObj = GameObject.Find("UseAverage").GetComponent<Toggle>();
         UseAverage = useAverageObj.isOn;
         useAverageObj.onValueChanged.AddListener(delegate { UpdateValues(); });
-        
+
+        //Invert spectrum
+        isInverted = invertSpectrum.isOn;
+        invertSpectrum.onValueChanged.AddListener(delegate { UpdateValues(); });
+
         //Visualisation Type
-        dropDownSpectrumScaling = GameObject.Find("ScalingStrategy").GetComponent<DropDownToEnum>();
-        visualisationTypeDropdown = GameObject.Find("VisualisationTypeDropdown").GetComponent<TMP_Dropdown>();
         visualisationTypeDropdown.onValueChanged.AddListener(delegate { ChangeVisualisationType(visualisationTypeDropdown); });
+        
+        //Visualisation shape - particles or lines
+        visualisationObjectsDropdown.onValueChanged.AddListener(delegate { ChangeVisualisationType(visualisationTypeDropdown); });
 
         //FFT Size
-        fftSizeDropdown = GameObject.Find("FftSizeDropdown").GetComponent<TMP_Dropdown>();
         fftSizeDropdown.onValueChanged.AddListener(delegate { UpdateValues(); });
 
+        //Spectrum scaling
+        dropDownSpectrumScaling.onValueChanged.AddListener(delegate { UpdateValues(); });
 
         //Line number
-        //lineNumInput = GameObject.Find("LineNumberInput").GetComponent<TMP_InputField>();
         lineNumSlider = GameObject.Find("LineNumberSlider").GetComponent<Slider>();
         lineNumSlider.value = visualisationScript.lineInstator.lineNum;
         lineNumSlider.onValueChanged.AddListener(delegate { ChangeLineNumber(); });
 
         lineNumText = GameObject.Find("BarNumberText").GetComponent<TextMeshProUGUI>();
         lineNumText.text = visualisationScript.barNumber.ToString();
-        //lineNumInput.text = visualisationScript.lineInstator.lineNum.ToString();
 
         //Add listener to color for particles
         hexColor.onValueChanged.AddListener(delegate { ColorChange(hexColor, randomColorBool); });
         previousHexColor = hexColor.text;
 
+        //Activate main panel - all have to be active at the beginning to get reference objects
         ChangeActivePanel("General");
     }
 
+
     private void Update()
     {
+        //Hide or show configuration panel
         if(Input.GetKeyDown(KeyCode.Tab))
         {
             if(isGUIActive)
@@ -129,10 +110,6 @@ public class GUIProperties : MonoBehaviour
         previousHexColor = hexColor.text;
     }
 
-    void DropdownValueChanged(Toggle change)
-    {
-        UpdateValues();
-    }
 
     void ColorChange(InputField colorName, bool useRandomColor)
     {
@@ -143,16 +120,43 @@ public class GUIProperties : MonoBehaviour
             lineScript.ChangeColor(colorName.text);
     }
 
+
     public void UpdateValues()
     {
-        ScalingStrategy x = (ScalingStrategy)dropDownSpectrumScaling.selection;
-
-        visualisationScript.UpdateValues(x, UseAverage, fftSizeDropdown.options[fftSizeDropdown.value].text);
+        Debug.Log("Activated!");
+        UseAverage = useAverageObj.isOn;
+        isInverted = invertSpectrum.isOn;
+        visualisationScript.UpdateValues(dropDownSpectrumScaling.options[dropDownSpectrumScaling.value].text, UseAverage, fftSizeDropdown.options[fftSizeDropdown.value].text, isInverted);
     }
+
 
     void ChangeVisualisationType(TMP_Dropdown visType)
     {
-        particleScript.ChangeVisualisationMode(visType.options[visType.value].text);
+        if (visualisationObjectsDropdown.options[visualisationObjectsDropdown.value].text == "Particles")
+        {
+            particleScript.enabled = true;
+            lineScript.enabled = false;
+            particleScript.ChangeVisualisationMode(visType.options[visType.value].text);
+            //var particleParent = visualisationScript.transform.Find("ParticleObjectParent");
+            var lineParent = visualisationScript.transform.Find("LineObjectParent");
+            Destroy(lineParent.gameObject);
+        }
+        else
+        {
+            lineScript.enabled = true;
+            particleScript.enabled = false;
+            var particleParent = visualisationScript.transform.Find("ParticleObjectParent");
+            var lineParent = visualisationScript.transform.Find("LineObjectParent");
+            if (particleParent != null)
+            {
+                Destroy(particleParent);
+            }
+            if (particleParent != null)
+            {
+                lineParent.gameObject.SetActive(true);
+            }
+            lineScript.ChangeVisualisationMode(visType.options[visType.value].text);
+        }
     }
 
     void UpdateOrientation()
@@ -161,12 +165,14 @@ public class GUIProperties : MonoBehaviour
         particleScript.ChangeOrientation();
     }
 
+
     void ChangeLineNumber()
     {
         visualisationScript.barNumber = (int)lineNumSlider.value;
         lineNumText.text = lineNumSlider.value.ToString();
         UpdateValues();
     }
+
 
     //ButtonMethods
     public void ChangeActivePanel(string activePanel)
