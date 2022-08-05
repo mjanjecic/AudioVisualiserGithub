@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using CSCore.DSP;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.PostProcessing;
 
 using UnityEngine.SceneManagement;
 
@@ -16,8 +18,8 @@ public class VisualisationMain : MonoBehaviour
     # region PUBLIC PROPERTIES
     public int barNumber = 64;
     public FftSize fftSize = FftSize.Fft2048;
-    public int minFreq = 5;
-    public int maxFreq = 4500;
+    public int minFreq = 20;
+    public int maxFreq = 4186;
     // float value for spectrum key 
     public float[] resData;
     public ScalingStrategy scalingStrategy;
@@ -26,6 +28,8 @@ public class VisualisationMain : MonoBehaviour
 
     //Smooths the line values
     public bool useAverage;
+
+    public PostProcessProfile postProcessObj;
 
 
     #endregion
@@ -52,10 +56,9 @@ public class VisualisationMain : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        //Debug.Log(1.0f / Time.deltaTime);
-        if(Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.R))
         {
-            
+
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
         float[] res = audioCapture.GetFFtData(maxHeight);
@@ -69,7 +72,15 @@ public class VisualisationMain : MonoBehaviour
             {
                 particleEffects.MapFrequencies(res);
             }
+
         }
+        postProcessObj.TryGetSettings<Bloom>(out var bloom);
+        bloom.intensity.overrideState = true;
+        float bloomScale = Mathf.Pow(res[3], 5) / maxHeight;
+        if (bloomScale > 20)
+            bloomScale = 20;
+        bloom.intensity.value = bloomScale;
+
     }
 
 
@@ -88,13 +99,14 @@ public class VisualisationMain : MonoBehaviour
         audioCapture.Initialize(this.fftSize, minFreq, maxFreq, this.scalingStrategy, useAverage, barNumber);
         if (lineInstator.isActiveAndEnabled)
         {
-            Debug.Log("This is wrong!");
+            Debug.Log("Setting lines!");
             lineInstator.lineNum = barNumber;
             lineInstator.isInverted = isInverted;
             lineInstator.InstantiateVisualisation();
         }
         if (particleEffects.isActiveAndEnabled)
         {
+            Debug.Log("Setting particles!");
             particleEffects.lineNum = barNumber;
             particleEffects.InstantiateVisualisation();
         }

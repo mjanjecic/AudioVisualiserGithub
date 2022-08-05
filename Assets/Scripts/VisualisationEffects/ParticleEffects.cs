@@ -2,8 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.PostProcessing;
+
 
 public class ParticleEffects : MonoBehaviour
 {
@@ -14,11 +13,10 @@ public class ParticleEffects : MonoBehaviour
     //Parents all instantiated bars to 1 parent
     GameObject parentObject;
 
-    public PostProcessProfile postProcessObj;
+    
 
     [HideInInspector]
     public int lineNum;
-    public float lineDist = 0.1f;
 
     //Circle parameters
     public float maxScale = 1;
@@ -147,58 +145,52 @@ public class ParticleEffects : MonoBehaviour
     public void MapFrequencies(float[] resData)
     {
         float averageValues = resData.Sum() / resData.Length;
-        for (int i = 0; i < lineNum; i++)
+        if (lineNum == resData.Length)
         {
-            if (resData[i] < 0.01f)
-                resData[i] = 0.01f;
-            else if (resData[i] > 6)
-                resData[i] = 6;
-
-            ParticleSystem particleSystem = parentObject.transform.GetChild(i).GetComponent<ParticleSystem>();
-            float scale = resData[i] * 100;
-            float size = resData[i] / 10;
-            if (size > 0.5f)
-                size = 0.5f;
-
-            //Particle size
-            var particleMainProperties = particleSystem.main;
-            particleMainProperties.startSize = size;
-
-            //Emission rate
-            float emissionRate = scale * 100;
-            if (emissionRate > 250)
-                emissionRate = 250;
-            var emission = particleSystem.emission;
-            emission.rateOverTime = emissionRate;
-
-            scale += averageValues;
-            scale /= 2500;
-            if (scale < 0.01f)
-                scale = 0.01f;
-
-            if (i == 3)
+            for (int i = 0; i < lineNum; i++)
             {
-                postProcessObj.TryGetSettings<Bloom>(out var bloom);
-                bloom.intensity.overrideState = true;
-                float bloomScale = Mathf.Pow(scale + 1, 4);
-                bloom.intensity.value = bloomScale;
+                if (resData[i] < 0.01f)
+                    resData[i] = 0.01f;
+                else if (resData[i] > 6)
+                    resData[i] = 6;
+
+                ParticleSystem particleSystem = parentObject.transform.GetChild(i).GetComponent<ParticleSystem>();
+                float scale = resData[i] * 100;
+                float size = resData[i] / 10;
+                if (size > 0.5f)
+                    size = 0.5f;
+
+                //Particle size
+                var particleMainProperties = particleSystem.main;
+                particleMainProperties.startSize = size;
+
+                //Emission rate
+                float emissionRate = scale * 100;
+                if (emissionRate > 250)
+                    emissionRate = 250;
+                var emission = particleSystem.emission;
+                emission.rateOverTime = emissionRate;
+
+                scale += averageValues;
+                scale /= 2500;
+                if (scale < 0.01f)
+                    scale = 0.01f;
+
+
+
+                particleMainProperties.simulationSpeed = scale;
+
+                //Randomize colors
+                if (randomColorBool)
+                {
+                    particleMainProperties.startColor = new Color(dominantColor.r + Random.Range(0.1f, 1), dominantColor.g + Random.Range(0.1f, 1), dominantColor.b + Random.Range(0.1f, 1));
+                }
             }
 
-            particleMainProperties.simulationSpeed = scale;
-
-            //Randomize colors
-            if (randomColorBool)
+            if (visualisationType == VisualisationShape.Circular)
             {
-                particleMainProperties.startColor = new Color(dominantColor.r + Random.Range(0.1f, 1), dominantColor.g + Random.Range(0.1f, 1), dominantColor.b + Random.Range(0.1f, 1));
+                parentObject.transform.Rotate(Vector3.forward * averageValues / 5f, Space.Self);
             }
-            var noise = particleSystem.noise;
-            //lastValues[i] = scale;
-            noise.strengthMultiplier = resData[i];
-        }
-
-        if (visualisationType == VisualisationShape.Circular)
-        {
-            parentObject.transform.Rotate(Vector3.forward * averageValues / 5f, Space.Self);
         }
     }
 

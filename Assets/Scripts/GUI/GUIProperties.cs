@@ -22,10 +22,6 @@ public class GUIProperties : GUIPropertiesBase
     bool isRising;
     bool isInverted;
 
-    TextMeshProUGUI lineNumText;
-    Slider lineNumSlider;
-
-
     public InputField hexColor;
     bool randomColorBool;
     #endregion
@@ -40,7 +36,6 @@ public class GUIProperties : GUIPropertiesBase
     void Start()
     {
         panelAnimation = panelMain.GetComponent<Animator>();
-
 
         //Instantiate up or down 
         isRising = risingObj.isOn;
@@ -70,13 +65,11 @@ public class GUIProperties : GUIPropertiesBase
         //Spectrum scaling
         dropDownSpectrumScaling.onValueChanged.AddListener(delegate { UpdateValues(); });
 
-        //Line number
-        lineNumSlider = GameObject.Find("LineNumberSlider").GetComponent<Slider>();
-        lineNumSlider.value = visualisationScript.lineInstator.lineNum;
+        //Line number slider
         lineNumSlider.onValueChanged.AddListener(delegate { ChangeLineNumber(); });
 
-        lineNumText = GameObject.Find("BarNumberText").GetComponent<TextMeshProUGUI>();
-        lineNumText.text = visualisationScript.barNumber.ToString();
+        //Max height slider
+        maxHeightSlider.onValueChanged.AddListener(delegate { ChangeMaxHeight(); });
 
         //Add listener to color for particles
         hexColor.onValueChanged.AddListener(delegate { ColorChange(hexColor, randomColorBool); });
@@ -129,6 +122,12 @@ public class GUIProperties : GUIPropertiesBase
         visualisationScript.UpdateValues(dropDownSpectrumScaling.options[dropDownSpectrumScaling.value].text, UseAverage, fftSizeDropdown.options[fftSizeDropdown.value].text, isInverted);
     }
 
+    public void ChangeMaxHeight()
+    {
+        visualisationScript.maxHeight = maxHeightSlider.value;
+        maxHeightText.text = visualisationScript.maxHeight.ToString();
+    }
+
 
     void ChangeVisualisationType(TMP_Dropdown visType)
     {
@@ -136,26 +135,22 @@ public class GUIProperties : GUIPropertiesBase
         {
             particleScript.enabled = true;
             lineScript.enabled = false;
+            particleScript.lineNum = (int)lineNumSlider.value;
             particleScript.ChangeVisualisationMode(visType.options[visType.value].text);
             //var particleParent = visualisationScript.transform.Find("ParticleObjectParent");
             var lineParent = visualisationScript.transform.Find("LineObjectParent");
-            Destroy(lineParent.gameObject);
+            if (lineParent != null)
+                Destroy(lineParent.gameObject);
         }
         else
         {
             lineScript.enabled = true;
             particleScript.enabled = false;
-            var particleParent = visualisationScript.transform.Find("ParticleObjectParent");
-            var lineParent = visualisationScript.transform.Find("LineObjectParent");
-            if (particleParent != null)
-            {
-                Destroy(particleParent);
-            }
-            if (particleParent != null)
-            {
-                lineParent.gameObject.SetActive(true);
-            }
+            lineScript.lineNum = (int)lineNumSlider.value;
             lineScript.ChangeVisualisationMode(visType.options[visType.value].text);
+            var particleParent = visualisationScript.transform.Find("ParticleObjectParent");
+            if(particleParent != null)
+            Destroy(particleParent.gameObject);
         }
     }
 

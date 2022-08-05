@@ -13,7 +13,7 @@ public class SpectrumBase : FftProvider
 
     //FrequencyMapping
     private const int ScaleFactorLinear = 9;
-    protected const int ScaleFactorSqr = 5;
+    protected const int ScaleFactorSqr = 2;
     protected const double MinDbValue = -90;
     protected const double MaxDbValue = 0;
     protected const double DbScale = (MaxDbValue - MinDbValue);
@@ -64,9 +64,8 @@ public class SpectrumBase : FftProvider
     public int GetFftBandIndex(float frequency)
     {
         int fftSize = (int)FftSize;
-        double f = sampleRate;
         // ReSharper disable once PossibleLossOfFraction
-        return (int)((frequency / f) * (fftSize)) ;
+        return (int)((frequency/sampleRate) * (fftSize)) ;
     }
 
     public void UpdateValues(ScalingStrategy scaling, bool useAverage)
@@ -79,15 +78,8 @@ public class SpectrumBase : FftProvider
     public void UpdateFrequencyMapping()
     {
         _maximumFrequencyIndex = Math.Min(GetFftBandIndex(_maximumFrequency) + 1, _maxFftIndex);
-        //_minimumFrequencyIndex = Math.Min(GetFftBandIndex(MinFreq), _maxFftIndex);
-        _minimumFrequencyIndex = MinFreq;
-        //_maximumFrequencyIndex = Math.Min(GetFftBandIndex(_maximumFrequency) + 1, _maxFftIndex);
+        _minimumFrequencyIndex = Math.Min(GetFftBandIndex(_minimumFrequency), _maxFftIndex);
 
-        //_maximumFrequencyIndex = (int)FftSize / 2 - 1 - _minimumFrequencyIndex;
-        Debug.Log("FFTSIZE " + (int)FftSize);
-        Debug.Log("MaxFreq " + _maximumFrequencyIndex);
-        Debug.Log("MaxFreq Set " + _maximumFrequency);
-        Debug.Log("MinFreq " + _minimumFrequencyIndex);
         int actualResolution = spectrumSize;
         int indexCount = _maximumFrequencyIndex - _minimumFrequencyIndex;
         double linearIndexBucketSize = Math.Round(indexCount / (double)actualResolution, 3);
@@ -95,17 +87,13 @@ public class SpectrumBase : FftProvider
         _spectrumIndexMax = _spectrumIndexMax.CheckBuffer(actualResolution, true);
         _spectrumLogScaleIndexMax = _spectrumLogScaleIndexMax.CheckBuffer(actualResolution, true);
 
-        //double maxLog = Math.Log(actualResolution, actualResolution);
-
         //MyTest
         double multiplier = Math.Log(indexCount, actualResolution);
-        Debug.Log(multiplier);
+        //if (multiplier < 1)
+        //    multiplier = 1;
         for (int i = 1; i < actualResolution; i++)
         {
-            //int logIndex = (int)((multiplier - Math.Log((actualResolution + 1) - i, (actualResolution + 1))) * indexCount) + _minimumFrequencyIndex;
-            //My
-            int logIndex = (int)Math.Ceiling(_minimumFrequencyIndex + Math.Pow(i, multiplier));
-            //Debug.Log("Log index" + logIndex);
+            int logIndex = (int)(_minimumFrequencyIndex + Math.Pow(i, multiplier));
 
             _spectrumIndexMax[i - 1] = _minimumFrequencyIndex + (int)(i * linearIndexBucketSize);
             _spectrumLogScaleIndexMax[i - 1] = logIndex;
@@ -113,17 +101,8 @@ public class SpectrumBase : FftProvider
 
         if (actualResolution > 0)
         {
-            Debug.Log(_maximumFrequencyIndex);
             _spectrumIndexMax[_spectrumIndexMax.Length - 1] = _spectrumLogScaleIndexMax[_spectrumLogScaleIndexMax.Length - 1] = _maximumFrequencyIndex;
         }
-        for (int i = 0; i < actualResolution; i++)
-        {
-
-        Debug.Log(i + ": " + _spectrumLogScaleIndexMax[i]);
-        }
-
-        //Debug.Log(_spectrumLogScaleIndexMax.Length);
-
     }
 
 
@@ -149,13 +128,12 @@ public class SpectrumBase : FftProvider
 
         double average = 0.0;
         int averageNumber = 0;
-        //Debug.Log("////////////////////////////////////////");
         for (int i = _minimumFrequencyIndex; i <= _maximumFrequencyIndex; i++)
         {
             switch (scalingStrategy)
             {
                 case ScalingStrategy.Decibel:
-                    value0 = (((20 * Math.Log10(fftBuffer[i])) - MinDbValue) / DbScale) * actualMaxValue;
+                    value0 = (((30 * Math.Log10(fftBuffer[i])) - MinDbValue) / DbScale) * actualMaxValue;
                     break;
                 case ScalingStrategy.Linear:
                     value0 = (fftBuffer[i] * ScaleFactorLinear) * actualMaxValue ;
@@ -175,7 +153,7 @@ public class SpectrumBase : FftProvider
             average += value0;
             averageNumber++;
             value = Math.Max(value0, value);
-            if (spectrumPointIndex < _spectrumIndexMax.Length && i == _spectrumLogScaleIndexMax[spectrumPointIndex])
+            if (spectrumPointIndex < _spectrumLogScaleIndexMax.Length && i == _spectrumLogScaleIndexMax[spectrumPointIndex])
             {
                 if (value > maxValue)
                     value = maxValue;
@@ -196,24 +174,17 @@ public class SpectrumBase : FftProvider
                     bufferDecrease[i] *= 1.5;
                 }
                 value0 = smoothBuffer[i];
-
                 dataPoints.Add(new SpectrumPointData { SpectrumPointIndex = spectrumPointIndex, Value = value0 });
                 averageNumber = 0;
                 average = 0;
                 lastValue = value;
                 value = 0.0;
                 spectrumPointIndex++;
-                //Debug.Log(spectrumPointIndex);
             }
             //value = 0;
         }
 
         return dataPoints.ToArray();
-    }
-
-    void BufferScaling()
-    {
-
     }
 
     public struct SpectrumPointData

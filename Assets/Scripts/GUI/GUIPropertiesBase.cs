@@ -28,6 +28,14 @@ public class GUIPropertiesBase : MonoBehaviour
     public Toggle invertSpectrum;
     public Toggle randomizeColors;
 
+    //Sliders
+    //Line numbers
+    public TextMeshProUGUI lineNumText;
+    public Slider lineNumSlider;
+    //Max height/value scaling
+    public TextMeshProUGUI maxHeightText;
+    public Slider maxHeightSlider;
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -55,5 +63,19 @@ public class GUIPropertiesBase : MonoBehaviour
 
         //Instantiate up or down 
         risingObj = GameObject.Find("Orientation").GetComponent<Toggle>();
+
+        //Line number
+        lineNumSlider = GameObject.Find("LineNumberSlider").GetComponent<Slider>();
+        lineNumSlider.value = visualisationScript.barNumber;
+
+        lineNumText = GameObject.Find("BarNumberText").GetComponent<TextMeshProUGUI>();
+        lineNumText.text = visualisationScript.barNumber.ToString();
+
+        //Line number
+        maxHeightSlider = GameObject.Find("MaxHeightSlider").GetComponent<Slider>();
+        maxHeightSlider.value = visualisationScript.barNumber;
+
+        maxHeightText = GameObject.Find("MaxHeightText").GetComponent<TextMeshProUGUI>();
+        maxHeightText.text = visualisationScript.maxHeight.ToString();
     }
 }
