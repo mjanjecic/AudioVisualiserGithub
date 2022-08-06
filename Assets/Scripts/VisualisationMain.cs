@@ -11,9 +11,9 @@ public class VisualisationMain : MonoBehaviour
 {
     AudioCapture audioCapture;
     [HideInInspector]
-    public LineInstantiatior lineInstator;
+    public LineInstantiatior lineScript;
     [HideInInspector]
-    public ParticleEffects particleEffects;
+    public ParticleEffects particleScript;
 
     # region PUBLIC PROPERTIES
     public int barNumber = 64;
@@ -30,6 +30,10 @@ public class VisualisationMain : MonoBehaviour
     public bool useAverage;
 
     public PostProcessProfile postProcessObj;
+    public float bloomIntensity;
+
+    public Color barColor;
+    public bool lineActive = true;
 
 
     #endregion
@@ -37,17 +41,20 @@ public class VisualisationMain : MonoBehaviour
     void Start()
     {
         audioCapture = gameObject.GetComponent<AudioCapture>();
-        lineInstator = gameObject.GetComponent<LineInstantiatior>();
-        lineInstator.lineNum = barNumber;
-        particleEffects = gameObject.GetComponent<ParticleEffects>();
-        particleEffects.lineNum = barNumber;
-        if (particleEffects.isActiveAndEnabled)
+
+        lineScript = gameObject.GetComponent<LineInstantiatior>();
+        lineScript.lineNum = barNumber;
+
+        particleScript = gameObject.GetComponent<ParticleEffects>();
+        particleScript.lineNum = barNumber;
+
+        if (!lineActive)
         {
-            particleEffects.InstantiateVisualisation();
+            particleScript.InstantiateVisualisation();
         }
-        if (lineInstator.isActiveAndEnabled)
+        if (lineActive)
         {
-            lineInstator.InstantiateVisualisation();
+            lineScript.InstantiateVisualisation();
         }
         
         audioCapture.Initialize(fftSize, minFreq, maxFreq, scalingStrategy, useAverage, barNumber);
@@ -58,29 +65,26 @@ public class VisualisationMain : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
-
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
+
         float[] res = audioCapture.GetFFtData(maxHeight);
+
         if (res.Length == barNumber)
         {
-            if (lineInstator.isActiveAndEnabled && lineInstator.lineNum == barNumber)
+            if (lineActive && lineScript.lineNum == barNumber)
             {
-                lineInstator.MapFrequencies(res);
+                lineScript.MapFrequencies(res);
             }
-            if (particleEffects.isActiveAndEnabled)
+            if (!lineActive && particleScript.lineNum == barNumber)
             {
-                particleEffects.MapFrequencies(res);
+                particleScript.MapFrequencies(res);
             }
-
         }
-        postProcessObj.TryGetSettings<Bloom>(out var bloom);
-        bloom.intensity.overrideState = true;
-        float bloomScale = Mathf.Pow(res[3], 5) / maxHeight;
-        if (bloomScale > 20)
-            bloomScale = 20;
-        bloom.intensity.value = bloomScale;
-
     }
 
 
@@ -90,25 +94,37 @@ public class VisualisationMain : MonoBehaviour
         audioCapture.FreeData();
     }
 
-    public void UpdateValues(string scaling, bool useAverage, string fftSize, bool isInverted)
+    public void ReinstantiateVisualisation(string scaling, bool useAverage, string fftSize)
     {
-        //Debug.Log("Update " + useAverage + ' ' + scaling + ' ' + fftSize + " " + isInverted);
         audioCapture.resolutionSize = barNumber;
         this.fftSize = (FftSize)System.Enum.Parse(typeof(FftSize), fftSize);
         this.scalingStrategy = (ScalingStrategy)System.Enum.Parse(typeof(ScalingStrategy), scaling);
         audioCapture.Initialize(this.fftSize, minFreq, maxFreq, this.scalingStrategy, useAverage, barNumber);
-        if (lineInstator.isActiveAndEnabled)
+        if (lineActive)
         {
-            Debug.Log("Setting lines!");
-            lineInstator.lineNum = barNumber;
-            lineInstator.isInverted = isInverted;
-            lineInstator.InstantiateVisualisation();
+            lineScript.lineNum = barNumber;
+            lineScript.InstantiateVisualisation();
         }
-        if (particleEffects.isActiveAndEnabled)
+        if (!lineActive)
         {
-            Debug.Log("Setting particles!");
-            particleEffects.lineNum = barNumber;
-            particleEffects.InstantiateVisualisation();
+            particleScript.lineNum = barNumber;
+            particleScript.InstantiateVisualisation();
         }
+    }
+
+    public void ChangeBloomIntensity()
+    {
+        postProcessObj.TryGetSettings<Bloom>(out var bloom);
+        bloom.intensity.overrideState = true;
+        bloom.intensity.value = bloomIntensity;
+    }
+
+    public void ChangeColor(Color colorName)
+    {
+        barColor = colorName;
+        if (!lineActive)
+            particleScript.ChangeColor(barColor);
+        if (lineActive)
+            lineScript.ChangeColor(barColor);
     }
 }

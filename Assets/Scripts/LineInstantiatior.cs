@@ -9,8 +9,6 @@ public class LineInstantiatior : MonoBehaviour
     public List<GameObject> circlePrefabs;
     GameObject parentObject;
 
-    public bool isInverted = false;
-
     [HideInInspector]
     public int lineNum = 16;
     //public float lineDist = 0.1f;
@@ -28,10 +26,8 @@ public class LineInstantiatior : MonoBehaviour
 
     List<GameObject> tracks;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-    }
+    Color barColor;
+
 
     void DestroyChildren()
     {
@@ -83,12 +79,8 @@ public class LineInstantiatior : MonoBehaviour
 
     public void ChangeVisualisationMode(string visualisationTypeString)
     {
-        DestroyChildren();
         visType = (VisualisationType)System.Enum.Parse(typeof(VisualisationType), visualisationTypeString);
-        if (visType == VisualisationType.Linear)
-            InstantiateLines();
-        else
-            InstantiateCircles();
+        InstantiateVisualisation();
     }
 
     public void InstantiateLines()
@@ -108,6 +100,10 @@ public class LineInstantiatior : MonoBehaviour
             x.name = "LineTrack"+i;
             x.transform.parent = parentObject.transform;
             x.transform.localScale = new Vector3(finalxScale, 1, 1);
+            if (barColor != Color.clear)
+            {
+                x.GetComponent<SpriteRenderer>().color = barColor;
+            }
             tracks.Add(x);
         }
     }
@@ -117,49 +113,68 @@ public class LineInstantiatior : MonoBehaviour
         parentObject = new GameObject();
         parentObject.name = "LineObjectParent";
         parentObject.transform.parent = this.transform;
+        Vector2 screenSize = Camera.main.ViewportToWorldPoint(new Vector2(1, 1));
+            float widthScale = screenSize.x / lineNum;
+        Debug.Log(widthScale);
         for (int i = lineNum-1; i >= 0; i--)
         {
             var x = Instantiate(circlePrefabs[Random.Range(0, circlePrefabs.Count)], Vector3.zero, Quaternion.identity);
             x.name = "LineCircle" + i;
             x.transform.parent = parentObject.transform;
-            LineRenderer LineDrawer = x.GetComponent<LineRenderer>();
-            LineDrawer.widthMultiplier = 0.6f;
-            float scale = 0.025f * i*2+1;
+            LineRenderer lineDrawer = x.GetComponent<LineRenderer>();
+            lineDrawer.widthMultiplier =  widthScale * 5;
+            float scale = 0.35f * (i+1)*  widthScale;
             x.transform.localScale = new Vector3(scale, scale, scale);
             x.transform.localRotation = Quaternion.Euler(0, 0, Random.Range(0, 360f));
+            if (barColor != Color.clear)
+                lineDrawer.colorGradient = ApplyGradient();
             tracks.Add(x);
         }
     }
 
-    public void DrawCircles()
+    public void ChangeColor(Color newCol)
     {
-        float ThetaScale = 0.01f;
-        float radius = 3f;
-        int Size;
-        LineRenderer lineDrawer = gameObject.AddComponent<LineRenderer>(); 
-        float Theta = 0f;
-        Theta = 0f;
-        Size = (int)((1f / ThetaScale) + 1f);
-        lineDrawer.positionCount = Size;
-        for (int i = 0; i < Size; i++)
-        {
-            Theta += (2.0f * Mathf.PI * ThetaScale);
-            float x = radius * Mathf.Cos(Theta);
-            float y = radius * Mathf.Sin(Theta);
-            lineDrawer.SetPosition(i, new Vector3(x, y, 0));
-        }
-    }
-
-    public void ChangeColor(string hexColor)
-    {
-        Color newCol;
-
-        if (ColorUtility.TryParseHtmlString(hexColor, out newCol))
+        Debug.Log("Applying color!");
+        barColor = newCol;
+        if (visType == VisualisationType.Linear)
         {
             for (int i = 0; i < lineNum; i++)
             {
-                tracks[i].GetComponent<SpriteRenderer>().color = newCol;
+                tracks[i].GetComponent<SpriteRenderer>().color = barColor;
             }
         }
+        else
+        {
+            for (int i = 0; i < lineNum; i++)
+            {
+                tracks[i].GetComponent<LineRenderer>().colorGradient = ApplyGradient();
+            }
+        }
+    }
+
+    Gradient ApplyGradient()
+    {
+        Gradient gradient = new Gradient();
+
+        GradientColorKey[] colorKey;
+        GradientAlphaKey[] alphaKey;
+
+        colorKey = new GradientColorKey[3];
+        colorKey[0].color = Color.white;
+        colorKey[0].time = 0.0f;
+        colorKey[1].color = barColor;
+        colorKey[1].time = 0.5f;
+        colorKey[2].color = Color.white;
+        colorKey[2].time = 1.0f;
+
+        alphaKey = new GradientAlphaKey[3];
+        alphaKey[0].alpha = 1.0f;
+        alphaKey[0].time = 1.0f;
+        alphaKey[1].alpha = 1.0f;
+        alphaKey[1].time = 1.0f;
+        alphaKey[2].alpha = 1.0f;
+        alphaKey[2].time = 1.0f;
+        gradient.SetKeys(colorKey, alphaKey);
+        return gradient;
     }
 }

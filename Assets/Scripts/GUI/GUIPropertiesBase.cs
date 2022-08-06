@@ -22,11 +22,6 @@ public class GUIPropertiesBase : MonoBehaviour
     //Toggles
     //Use average for smoothing values
     public Toggle useAverageObj;
-    //Rising or falling particles
-    public Toggle risingObj;
-    //Invert spectrum
-    public Toggle invertSpectrum;
-    public Toggle randomizeColors;
 
     //Sliders
     //Line numbers
@@ -35,6 +30,10 @@ public class GUIPropertiesBase : MonoBehaviour
     //Max height/value scaling
     public TextMeshProUGUI maxHeightText;
     public Slider maxHeightSlider;
+
+    //Bloom intensity
+    public Slider bloomSlider;
+    public TextMeshProUGUI bloomValueText;
 
     // Start is called before the first frame update
     void Awake()
@@ -52,17 +51,8 @@ public class GUIPropertiesBase : MonoBehaviour
         //FFT Size
         fftSizeDropdown = GameObject.Find("FftSizeDropdown").GetComponent<TMP_Dropdown>();
 
-        //Invert spectrum
-        invertSpectrum = GameObject.Find("ToggleSpectrumInvert").GetComponent<Toggle>();
-
         //Use average
         useAverageObj = GameObject.Find("UseAverage").GetComponent<Toggle>();
-
-        //Randomize particle colors
-        randomizeColors = GameObject.Find("ToggleRandomizeDominantColor").GetComponent<Toggle>();
-
-        //Instantiate up or down 
-        risingObj = GameObject.Find("Orientation").GetComponent<Toggle>();
 
         //Line number
         lineNumSlider = GameObject.Find("LineNumberSlider").GetComponent<Slider>();
@@ -71,11 +61,17 @@ public class GUIPropertiesBase : MonoBehaviour
         lineNumText = GameObject.Find("BarNumberText").GetComponent<TextMeshProUGUI>();
         lineNumText.text = visualisationScript.barNumber.ToString();
 
-        //Line number
+        //Height/strength multiplier
         maxHeightSlider = GameObject.Find("MaxHeightSlider").GetComponent<Slider>();
         maxHeightSlider.value = visualisationScript.barNumber;
 
         maxHeightText = GameObject.Find("MaxHeightText").GetComponent<TextMeshProUGUI>();
         maxHeightText.text = visualisationScript.maxHeight.ToString();
+
+        //Bloom intensity
+        bloomSlider = GameObject.Find("BloomStrengthSlider").GetComponent<Slider>();
+        bloomSlider.value = 0;
+        bloomValueText = GameObject.Find("BloomIntensityText").GetComponent<TextMeshProUGUI>();
+        bloomValueText.text = bloomSlider.value.ToString();
     }
 }

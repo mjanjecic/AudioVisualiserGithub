@@ -121,8 +121,7 @@ public class SpectrumBase : FftProvider
     {
         var dataPoints = new List<SpectrumPointData>();
 
-        double value0 = 0, value = 0;
-        double lastValue = 0;
+        double value = 0;
         double actualMaxValue = maxValue;
         int spectrumPointIndex = 0;
 
@@ -133,55 +132,56 @@ public class SpectrumBase : FftProvider
             switch (scalingStrategy)
             {
                 case ScalingStrategy.Decibel:
-                    value0 = (((30 * Math.Log10(fftBuffer[i])) - MinDbValue) / DbScale) * actualMaxValue;
+                    if(fftBuffer[i] <= 0)
+                    {
+                        value = 0;
+                        break;
+                    }
+                    value = (((30 * Math.Log10(fftBuffer[i])) - MinDbValue) / DbScale) * actualMaxValue;
                     break;
                 case ScalingStrategy.Linear:
-                    value0 = (fftBuffer[i] * ScaleFactorLinear) * actualMaxValue ;
+                    value = (fftBuffer[i] * ScaleFactorLinear) * actualMaxValue ;
                     break;
                 case ScalingStrategy.Sqrt:
-                    value0 = ((Math.Sqrt(fftBuffer[i]))) * actualMaxValue;
+                    value = ((Math.Sqrt(fftBuffer[i]))) * actualMaxValue;
                     break;
             }
 
             //Use hamming window function
-            value0 *= FastFourierTransformation.HammingWindow(i, (int)FftSize);
+            value *= FastFourierTransformation.HammingWindow(i, (int)FftSize);
 
-            //lastValue = value0;
-            average += value0;
+            average += value;
             averageNumber++;
 
-            average += value0;
+            average += value;
             averageNumber++;
-            value = Math.Max(value0, value);
             if (spectrumPointIndex < _spectrumLogScaleIndexMax.Length && i == _spectrumLogScaleIndexMax[spectrumPointIndex])
             {
                 if (value > maxValue)
                     value = maxValue;
                 if (useAverage && spectrumPointIndex > 0)
                 {
-                    value0 = (value0 + lastValue + 0.0) / 2;
+                    value = average/(averageNumber + 0.0f);
                 }
 
                 //Smoothing curves
-                if (value0 > smoothBuffer[i])
+                if (value > smoothBuffer[i])
                 {
-                    smoothBuffer[i] = value0;
+                    smoothBuffer[i] = value;
                     bufferDecrease[i] = 0.01;
                 }
-                if (value0 < smoothBuffer[i])
+                if (value < smoothBuffer[i])
                 {
                     smoothBuffer[i] -= bufferDecrease[i];
                     bufferDecrease[i] *= 1.5;
                 }
-                value0 = smoothBuffer[i];
-                dataPoints.Add(new SpectrumPointData { SpectrumPointIndex = spectrumPointIndex, Value = value0 });
+                value = smoothBuffer[i];
+                dataPoints.Add(new SpectrumPointData { SpectrumPointIndex = spectrumPointIndex, Value = value });
                 averageNumber = 0;
                 average = 0;
-                lastValue = value;
                 value = 0.0;
                 spectrumPointIndex++;
             }
-            //value = 0;
         }
 
         return dataPoints.ToArray();
